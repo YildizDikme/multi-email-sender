@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MailSender — Toplu E-posta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .topbar {
+      background: #0f172a;
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .topbar-logo {
+      color: #60a5fa;
+      font-size: 20px;
+    }
+    .topbar h1 {
+      color: #f8fafc;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .topbar span {
+      color: #64748b;
+      font-size: 13px;
+      margin-left: 4px;
+    }
+
+    .page {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 18px 24px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .step-badge {
+      width: 26px; height: 26px;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .card-head h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .card-head .hint {
+      margin-left: auto;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .card-body { padding: 22px 24px; }
+
+    /* ── Step indicator bar ── */
+    .steps {
+      display: flex;
+      gap: 0;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .step-item {
+      flex: 1;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-right: 1px solid #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .step-item:last-child { border-right: none; }
+    .step-item.active { color: #0f172a; font-weight: 600; }
+    .step-item.done   { color: #22c55e; }
+    .step-item .num {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-item.active .num { background: #3b82f6; color: #fff; }
+    .step-item.done   .num { background: #22c55e; color: #fff; }
+
+    /* ── Upload zone ── */
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: #f8fafc;
+      user-select: none;
+    }
+    .drop-zone:hover, .drop-zone.drag { border-color: #3b82f6; background: #eff6ff; }
+    .drop-zone .dz-icon { font-size: 32px; margin-bottom: 10px; }
+    .drop-zone h3 { font-size: 15px; font-weight: 600; color: #334155; }
+    .drop-zone p  { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+    .drop-zone .badges { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+    .badge-fmt {
+      background: #e2e8f0; color: #475569;
+      font-size: 11px; font-weight: 600;
+      padding: 3px 9px; border-radius: 4px;
+    }
+    #fileInput { display: none; }
+
+    /* ── File loaded bar ── */
+    .file-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .file-bar.show { display: flex; }
+    .file-bar span { font-size: 13px; font-weight: 500; color: #15803d; flex: 1; }
+    .file-bar button {
+      background: none; border: none; cursor: pointer;
+      color: #94a3b8; font-size: 18px; line-height: 1;
+      transition: color .15s;
+    }
+    .file-bar button:hover { color: #ef4444; }
+
+    /* ── Summary pills ── */
+    .summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    }
+    .pill-green  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .pill-red    { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .pill-gray   { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+
+    /* ── Recipient table ── */
+    #recipientsCard { display: none; }
+
+    .table-wrap { max-height: 260px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      background: #f8fafc; padding: 9px 14px; text-align: left;
+      font-size: 11px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: .05em;
+      position: sticky; top: 0;
+    }
+    tbody tr { border-top: 1px solid #f1f5f9; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody td { padding: 8px 14px; }
+    .tag {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .tag-ok  { background: #f0fdf4; color: #16a34a; }
+    .tag-bad { background: #fef2f2; color: #dc2626; }
+
+    /* ── Compose ── */
+    #composeCard { display: none; }
+
+    .form-row { margin-bottom: 14px; }
+    .form-row:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+    input[type="text"], textarea {
+      width: 100%; padding: 10px 13px;
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      font-family: inherit; font-size: 14px; color: #0f172a;
+      background: #fafbfc; transition: border-color .2s, box-shadow .2s;
+      resize: vertical;
+    }
+    input[type="text"]:focus, textarea:focus {
+      outline: none; border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+      background: #fff;
+    }
+    textarea { min-height: 140px; }
+    .tip {
+      font-size: 12px; color: #94a3b8; margin-top: 5px;
+    }
+    .tip code {
+      background: #f1f5f9; padding: 1px 5px;
+      border-radius: 3px; color: #3b82f6; font-size: 12px;
+    }
+
+    /* ── Send panel ── */
+    #sendCard { display: none; }
+
+    .send-strip {
+      background: #0f172a; border-radius: 10px;
+      padding: 20px 22px;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .send-strip-info h3 { color: #f8fafc; font-size: 15px; font-weight: 600; }
+    .send-strip-info p  { color: #94a3b8; font-size: 13px; margin-top: 2px; }
+
+    #sendBtn {
+      background: #3b82f6; color: #fff;
+      border: none; border-radius: 8px;
+      padding: 11px 26px; font-family: inherit; font-size: 15px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      transition: background .2s, transform .1s;
+      white-space: nowrap;
+    }
+    #sendBtn:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); }
+    #sendBtn:disabled { background: #374151; cursor: not-allowed; opacity: .55; transform: none; }
+    .spinner {
+      display: none; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ── */
+    #resultsCard { display: none; }
+
+    .result-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; margin-bottom: 16px;
+    }
+    .stat {
+      border-radius: 10px; padding: 14px; text-align: center;
+    }
+    .stat-total   { background: #f1f5f9; }
+    .stat-success { background: #f0fdf4; }
+    .stat-fail    { background: #fef2f2; }
+    .stat-num { font-size: 30px; font-weight: 700; line-height: 1; }
+    .stat-total   .stat-num { color: #0f172a; }
+    .stat-success .stat-num { color: #16a34a; }
+    .stat-fail    .stat-num { color: #dc2626; }
+    .stat-lbl { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+    .result-msg {
+      padding: 11px 15px; border-radius: 8px;
+      font-size: 14px; font-weight: 500; margin-bottom: 14px;
+    }
+    .msg-ok      { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .msg-partial { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+    .msg-fail    { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .failed-list h4 { font-size: 12px; font-weight: 600; color: #dc2626; margin-bottom: 8px; }
+    .failed-item {
+      display: flex; gap: 8px; align-items: center;
+      padding: 7px 11px; background: #fef2f2;
+      border-radius: 6px; margin-bottom: 5px; font-size: 13px;
+    }
+    .failed-item .fe { color: #991b1b; font-weight: 500; }
+    .failed-item .err { color: #94a3b8; font-size: 11px; margin-left: auto; }
+
+    .reset-btn {
+      margin-top: 14px; background: none;
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 9px 18px; font-family: inherit; font-size: 13px;
+      color: #475569; cursor: pointer; transition: all .2s;
+    }
+    .reset-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: #1e293b; color: #fff;
+      padding: 11px 16px; border-radius: 8px;
+      font-size: 13px; max-width: 340px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.2);
+      opacity: 0; transform: translateY(12px);
+      transition: all .25s; z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #toast.err  { border-left: 3px solid #ef4444; }
+    #toast.ok   { border-left: 3px solid #22c55e; }
+
+    /* ── Loading spinner overlay ── */
+    .loading-row { display: flex; align-items: center; gap: 10px; color: #64748b; font-size: 14px; padding: 8px 0; }
+    .loading-row .sp {
+      width: 18px; height: 18px;
+      border: 2px solid #e2e8f0; border-top-color: #3b82f6;
+      border-radius: 50%; animation: spin .65s linear infinite;
+    }
+
+    @media (max-width: 600px) {
+      .page { margin: 16px auto; }
+      .result-grid { grid-template-columns: 1fr; }
+      .send-strip { flex-direction: column; }
+      .steps { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <span class="topbar-logo">✉</span>
+  <h1>MailSender <span>— Toplu E-posta Gönderici</span></h1>
+</div>
+
+<div class="page">
+
+  <!-- Step indicator -->
+  <div class="steps">
+    <div class="step-item active" id="s1"><span class="num">1</span> Dosya Yükle</div>
+    <div class="step-item" id="s2"><span class="num">2</span> Alıcıları İncele</div>
+    <div class="step-item" id="s3"><span class="num">3</span> Mesajı Yaz</div>
+    <div class="step-item" id="s4"><span class="num">4</span> Gönder</div>
+    <div class="step-item" id="s5"><span class="num">5</span> Sonuçlar</div>
+  </div>
+
+  <!-- ① Upload -->
+  <div class="card">
+    <div class="card-head">
+      <span class="step-badge">1</span>
+      <h2>Kişi Listesini Yükle</h2>
+      <span class="hint">CSV veya Excel</span>
+    </div>
+    <div class="card-body">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="dz-icon">📂</div>
+        <h3>Dosyayı buraya sürükle veya tıkla</h3>
+        <p>E-posta adreslerini içeren listeyi seç</p>
+        <div class="badges">
+          <span class="badge-fmt">CSV</span>
+          <span class="badge-fmt">XLSX</span>
+          <span class="badge-fmt">XLS</span>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
+      </div>
+      <div class="file-bar" id="fileBar">
+        <span>📄 </span><span id="fileName" style="flex:1"></span>
+        <button onclick="resetAll()">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② Recipients -->
+  <div class="card" id="recipientsCard">
+    <div class="card-head">
+      <span class="step-badge">2</span>
+      <h2>Alıcılar</h2>
+    </div>
+    <div class="card-body">
+      <div class="summary" id="summaryBar"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ad</th>
+              <th>E-posta</th>
+              <th>Durum</th>
+            </tr>
+          </thead>
+          <tbody id="recipientsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ Compose -->
+  <div class="card" id="composeCard">
+    <div class="card-head">
+      <span class="step-badge">3</span>
+      <h2>E-postayı Oluştur</h2>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <label for="subject">Konu</label>
+        <input type="text" id="subject" placeholder="E-postanızın konusunu yazın..." oninput="checkReady()" />
+      </div>
+      <div class="form-row">
+        <label for="body">Mesaj</label>
+        <textarea id="body" placeholder="Mesajınızı buraya yazın..." oninput="checkReady()"></textarea>
+        <p class="tip">İpucu: Mesajda <code>{name}</code> veya <code>{isim}</code> yazarak kişinin adını otomatik ekleyebilirsin.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ Send -->
+  <div class="card" id="sendCard">
+    <div class="card-head">
+      <span class="step-badge">4</span>
+      <h2>Gönder</h2>
+    </div>
+    <div class="card-body">
+      <div class="send-strip">
+        <div class="send-strip-info">
+          <h3 id="sendTitle">Göndermeye hazır</h3>
+          <p id="sendSub">Butona tıkla, e-postalar anında gönderilsin</p>
+        </div>
+        <button id="sendBtn" disabled onclick="sendEmails()">
+          <div class="spinner" id="sendSpinner"></div>
+          <span id="sendBtnText">✉ Gönder</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ Results -->
+  <div class="card" id="resultsCard">
+    <div class="card-head">
+      <span class="step-badge">5</span>
+      <h2>Sonuçlar</h2>
+    </div>
+    <div class="card-body" id="resultsBody"></div>
+  </div>
+
+</div><!-- /page -->
+
+<div id="toast"></div>
+
+<script>
+  let validRecipients = [];
+
+  // ── Drag & drop ──────────────────────────────────────────────────────
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  // ── Handle file upload ───────────────────────────────────────────────
+  function handleFile(file) {
+    document.getElementById('fileName').textContent = file.name + ' (' + fmtSize(file.size) + ')';
+    document.getElementById('fileBar').classList.add('show');
+
+    // Show loading state in recipients area
+    document.getElementById('recipientsCard').style.display = 'block';
+    document.getElementById('recipientsBody').innerHTML =
+      '<tr><td colspan="3"><div class="loading-row"><span class="sp"></span> Okunuyor...</div></td></tr>';
+    document.getElementById('summaryBar').innerHTML = '';
+
+    const form = new FormData();
+    form.append('file', file);
+
+    fetch('/upload', { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { showToast(data.error, 'err'); return; }
+        renderRecipients(data.valid, data.invalid);
+      })
+      .catch(() => showToast('Dosya yüklenirken hata oluştu.', 'err'));
+  }
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+  }
+
+  // ── Render recipients ────────────────────────────────────────────────
+  function renderRecipients(valid, invalid) {
+    validRecipients = valid;
+
+    const summary = document.getElementById('summaryBar');
+    summary.innerHTML =
+      `<span class="pill pill-green">✅ ${valid.length} geçerli alıcı</span>` +
+      (invalid.length ? `<span class="pill pill-red">⚠ ${invalid.length} geçersiz</span>` : '') +
+      `<span class="pill pill-gray">📋 Toplam ${valid.length + invalid.length}</span>`;
+
+    const tbody = document.getElementById('recipientsBody');
+    tbody.innerHTML = '';
+
+    [...valid.map(r => ({...r, ok: true})), ...invalid.map(r => ({...r, ok: false}))]
+      .forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${r.name || '<span style="color:#94a3b8">—</span>'}</td>
+          <td style="font-family:monospace;font-size:12px">${r.email}</td>
+          <td><span class="tag ${r.ok ? 'tag-ok' : 'tag-bad'}">${r.ok ? '✓ Geçerli' : '✗ Geçersiz'}</span></td>`;
+        tbody.appendChild(tr);
+      });
+
+    // Show compose + send sections
+    document.getElementById('composeCard').style.display = 'block';
+    document.getElementById('sendCard').style.display = 'block';
+    setStep(2);
+    checkReady();
+  }
+
+  // ── Ready check ──────────────────────────────────────────────────────
+  function checkReady() {
+    const subject = document.getElementById('subject').value.trim();
+    const body    = document.getElementById('body').value.trim();
+    const ready   = validRecipients.length > 0 && subject && body;
+    const btn     = document.getElementById('sendBtn');
+    btn.disabled  = !ready;
+
+    if (ready) {
+      document.getElementById('sendTitle').textContent = `${validRecipients.length} kişiye göndermeye hazır`;
+      document.getElementById('sendSub').textContent   = 'Butona tıkla, e-postalar anında gönderilsin';
+      setStep(4);
+    } else if (validRecipients.length > 0) {
+      setStep(3);
+    }
+  }
+
+  // ── Send ─────────────────────────────────────────────────────────────
+  function sendEmails() {
+    const subject = document.getElementById('subject').value.trim();
+    const body    = document.getElementById('body').value.trim();
+    const btn     = document.getElementById('sendBtn');
+    const spinner = document.getElementById('sendSpinner');
+    const btnText = document.getElementById('sendBtnText');
+
+    btn.disabled          = true;
+    spinner.style.display = 'block';
+    btnText.textContent   = 'Gönderiliyor...';
+
+    fetch('/send', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ subject, body, recipients: validRecipients })
+    })
+    .then(r => r.json())
+    .then(data => {
+      spinner.style.display = 'none';
+      btnText.textContent   = '✉ Gönder';
+      btn.disabled          = false;
+      if (data.error) { showToast(data.error, 'err'); return; }
+      renderResults(data);
+      setStep(5);
+    })
+    .catch(() => {
+      spinner.style.display = 'none';
+      btnText.textContent   = '✉ Gönder';
+      btn.disabled          = false;
+      showToast('Gönderim sırasında hata oluştu.', 'err');
+    });
+  }
+
+  // ── Results ──────────────────────────────────────────────────────────
+  function renderResults(data) {
+    const card = document.getElementById('resultsCard');
+    const body = document.getElementById('resultsBody');
+    card.style.display = 'block';
+
+    let msgClass, msgText;
+    if (data.failed_count === 0) {
+      msgClass = 'msg-ok';
+      msgText  = `🎉 Tüm e-postalar başarıyla gönderildi!`;
+    } else if (data.success_count === 0) {
+      msgClass = 'msg-fail';
+      msgText  = '❌ Hiçbir e-posta gönderilemedi. SMTP ayarlarını kontrol et.';
+    } else {
+      msgClass = 'msg-partial';
+      msgText  = `⚠ ${data.success_count} başarılı, ${data.failed_count} gönderilemedi.`;
+    }
+
+    let failedHtml = '';
+    if (data.failed && data.failed.length) {
+      failedHtml = `<div class="failed-list">
+        <h4>Gönderilemeyenler</h4>
+        ${data.failed.map(f => `
+          <div class="failed-item">
+            <span>✗</span>
+            <span class="fe">${f.email}</span>
+            ${f.name ? `<span style="color:#94a3b8;font-size:12px">(${f.name})</span>` : ''}
+            <span class="err">${f.error || ''}</span>
+          </div>`).join('')}
+      </div>`;
+    }
+
+    body.innerHTML = `
+      <div class="result-grid">
+        <div class="stat stat-total">
+          <div class="stat-num">${data.total}</div>
+          <div class="stat-lbl">Toplam</div>
+        </div>
+        <div class="stat stat-success">
+          <div class="stat-num">${data.success_count}</div>
+          <div class="stat-lbl">Gönderildi</div>
+        </div>
+        <div class="stat stat-fail">
+          <div class="stat-num">${data.failed_count}</div>
+          <div class="stat-lbl">Başarısız</div>
+        </div>
+      </div>
+      <div class="result-msg ${msgClass}">${msgText}</div>
+      ${failedHtml}
+      <button class="reset-btn" onclick="resetAll()">← Yeni Gönderim</button>`;
+
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Reset ─────────────────────────────────────────────────────────────
+  function resetAll() {
+    validRecipients = [];
+    fileInput.value = '';
+    document.getElementById('fileBar').classList.remove('show');
+    document.getElementById('recipientsCard').style.display = 'none';
+    document.getElementById('composeCard').style.display    = 'none';
+    document.getElementById('sendCard').style.display       = 'none';
+    document.getElementById('resultsCard').style.display    = 'none';
+    document.getElementById('subject').value = '';
+    document.getElementById('body').value    = '';
+    setStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Step indicator ────────────────────────────────────────────────────
+  function setStep(n) {
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById('s' + i);
+      el.classList.remove('active', 'done');
+      if (i < n)  el.classList.add('done');
+      if (i === n) el.classList.add('active');
+    }
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className   = 'show ' + (type || '');
+    setTimeout(() => { t.className = ''; }, 4200);
+  }
+</script>
+</body>
+</html>
